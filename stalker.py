@@ -1,4 +1,3 @@
-
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -101,7 +100,24 @@ def stalk_sunway(history):
     except Exception as e:
         print(f"❌ Error stalking Sunway: {e}")
 
-if __name__ == "__main__":
-    history_set = load_history()
-    stalk_nus(history_set)
-    stalk_sunway(history_set)
+def stalk_usm(history):
+    print("🔍 Master Stalker is monitoring USM Product Design...")
+    url = "https://productdesign.eng.usm.my/index.php/ms/enterprise/job-vacancies"
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code != 200:
+            print(f"❌ Cannot access USM (Status: {response.status_code})")
+            return
+            
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Look for article links or list items inside the main content of USM page
+        links = soup.find_all('a')
+        for link in links:
+            href = link.get('href', '')
+            text = link.text.strip()
+            
+            if href and not href.startswith('http'):
+                href = f"https://productdesign.eng.usm.my{href}"
