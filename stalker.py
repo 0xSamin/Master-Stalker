@@ -112,8 +112,6 @@ def stalk_usm(history):
             return
             
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Look for article links or list items inside the main content of USM page
         links = soup.find_all('a')
         for link in links:
             href = link.get('href', '')
@@ -121,3 +119,73 @@ def stalk_usm(history):
             
             if href and not href.startswith('http'):
                 href = f"https://productdesign.eng.usm.my{href}"
+                
+            full_text_lower = text.lower()
+            is_target = any(k in full_text_lower for k in ["research assistant", "ra", "vacancy", "jawatan kosong", "master"])
+            
+            if is_target and href not in history:
+                msg = (
+                    f"🧪 **Master Stalker Alert: USM**\n\n"
+                    f"🎯 **New Vacancy/RA Position Detected:**\n"
+                    f"`{text}`\n\n"
+                    f"🔗 **Check Details:**\n{href}"
+                )
+                send_telegram(msg)
+                save_to_history(href)
+                history.add(href)
+    except Exception as e:
+        print(f"❌ Error stalking USM: {e}")
+
+def stalk_utm(history):
+    print("🔍 Master Stalker is parsing UTM Postgraduate Vacancy Table...")
+    url = "https://research.utm.my/"
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        if response.status_code != 200:
+            print(f"❌ Cannot access UTM (Status: {response.status_code})")
+            return
+            
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Target only tables to bypass podcasts, ads, and widgets
+        tables = soup.find_all('table')
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all('td')
+                # Ensure it's a valid data row from the vacancy table
+                if len(cells) >= 5:
+                    appointment_type = cells[1].text.strip()
+                    degree_type = cells[2].text.strip().lower()
+                    project_title = cells[4].text.strip()
+                    
+                    # Look for application link inside the last cells
+                    link_element = row.find('a')
+                    apply_link = link_element.get('href', '') if link_element else url
+                    
+                    # Filter for Master/MSc positions or general GRAs
+                    is_master_target = "master" in degree_type or "gra" in appointment_type.lower()
+                    
+                    if is_master_target and project_title and apply_link not in history:
+                        msg = (
+                            f"🔮 **Master Stalker Alert: UTM**\n\n"
+                            f"🎯 **New Postgraduate Vacancy Found:**\n"
+                            f"📂 **Project:** `{project_title}`\n"
+                            f"📋 **Type:** {appointment_type} ({cells[2].text.strip()})\n\n"
+                            f"🔗 **Apply / View:**\n{apply_link}"
+                        )
+                        send_telegram(msg)
+                        save_to_history(apply_link)
+                        history.add(apply_link)
+                        
+    except Exception as e:
+        print(f"❌ Error stalking UTM: {e}")
+
+if __name__ == "__main__":
+    history_set = load_history()
+    stalk_nus(history_set)
+    stalk_sunway(history_set)
+    stalk_usm(history_set)
+    stalk_utm(history_set)
